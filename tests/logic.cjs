@@ -1,0 +1,35 @@
+const fs = require('fs'), vm = require('vm'), assert = require('assert/strict');
+const html = fs.readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
+function node(){return {textContent:'',disabled:false,className:'',children:[],listeners:{},classList:{toggle(){}},append(c){this.children.push(c)},setAttribute(){},addEventListener(e,f){this.listeners[e]=f},focus(){},click(){if(!this.disabled)this.listeners.click()}}}
+const board=node(),status=node(),restart=node(),px=node(),po=node();
+const document={querySelector:s=>({'.board':board,'#status':status,'#restart':restart,'#player-x':px,'#player-o':po}[s]),createElement:node};
+vm.runInNewContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],{document});
+const play=seq=>seq.forEach(i=>board.children[i].click());
+const reset=()=>restart.click();
+reset();assert.equal(board.children.length,9);play([0,1]);assert.equal(board.children[0].textContent,'X');assert.equal(board.children[1].textContent,'O');assert.match(status.textContent,/Au tour de X/);console.log('1. Initialisation et alternance : OK');
+board.children[0].listeners.click();assert.equal(board.children[0].textContent,'X');assert.match(status.textContent,/Au tour de X/);console.log('2. Case occupée refusée : OK');
+const wins=[[0,3,1,4,2],[3,0,4,1,5],[6,0,7,1,8],[0,1,3,2,6],[1,0,4,2,7],[2,0,5,1,8],[0,1,4,2,8],[2,0,4,1,6],[3,0,4,1,8,2],[0,1,2,3,4,5,7,6,8]];
+for(const seq of wins){reset();play(seq);assert.match(status.textContent,/a gagné/);assert.equal(board.children.filter(c=>c.className.includes('winner')).length,3);assert.ok(board.children.every(c=>c.disabled));const before=board.children.map(c=>c.textContent);board.children.forEach(c=>c.listeners.click());assert.deepEqual(board.children.map(c=>c.textContent),before)}console.log('3. Huit alignements, X/O, victoire au 9e coup et verrouillage : OK');
+reset();play([0,1,2,4,3,5,7,6,8]);assert.match(status.textContent,/Match nul/);assert.ok(board.children.every(c=>c.disabled));console.log('4. Match nul et verrouillage : OK');
+reset();assert.ok(board.children.every(c=>!c.disabled&&!c.textContent));assert.match(status.textContent,/Au tour de X/);play([4]);reset();assert.ok(board.children.every(c=>!c.disabled&&!c.textContent));assert.ok(!/<(?:script|link|img)[^>]+(?:src|href)\s*=/i.test(html));console.log('5. Réinitialisation après fin ou en cours de partie ; ressources intégrées : OK');
+console.log('Limite : tests du script avec DOM simulé ; aucun essai dans un navigateur réel.');
+// Les cinq essais exacts de l'annexe (numérotation de 1 à 9).
+const click = n => board.children[n-1].listeners.click();
+reset(); click(1); click(1); click(4);
+assert.deepEqual(board.children.map(c=>c.textContent),['X','','','O','','','','','']);
+assert.match(status.textContent,/Au tour de X/);
+console.log('Annexe 1 — Tour et case occupée : logique réussie');
+reset(); [1,4,2,5,3].forEach(click);
+assert.equal(status.textContent,'X a gagné ! — Joueur 1');
+assert.deepEqual(board.children.slice(0,3).map(c=>c.textContent),['X','X','X']);
+console.log('Annexe 2 — Victoire de X : logique réussie');
+const afterWin=board.children.map(c=>c.textContent); click(9);
+assert.deepEqual(board.children.map(c=>c.textContent),afterWin);
+console.log('Annexe 3 — Partie terminée : logique réussie');
+reset(); assert.ok(board.children.every(c=>c.textContent==='')); click(9);
+assert.equal(board.children[8].textContent,'X');
+console.log('Annexe 4 — Recommencer : logique réussie');
+reset(); [1,2,3,5,4,6,8,7,9].forEach(click);
+assert.match(status.textContent,/Match nul/);
+console.log('Annexe 5 — Match nul : logique réussie');
+assert.ok(html.includes('>Nouvelle partie</button>'));

@@ -1,0 +1,6 @@
+{
+  "name": "morpion-deux-joueurs",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": { "test": "node tests/logic.cjs", "test:browser": "node tests/browser.cjs" }
+}
